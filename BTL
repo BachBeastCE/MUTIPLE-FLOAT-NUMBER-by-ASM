@@ -1,0 +1,62 @@
+#					CHUONG TRINH NHAN 2 SO THUC CHINH XAC DON (FLOAT)						  		#
+#	Input:	2 so thuc a, b nhap tu ban phim										  	#
+#	Output:	Ket qua tich so cua phep nhan a * b										#
+#									  							#
+# 	** Cac truong hop ngoai le: 											  	#
+#	1. Neu so nhan khong hop le (NaN) thi ket qua la NaN 					#case 1				#
+#	2. Neu mot trong 2 so nhan la 0 thi ket qua la 0			  		#case 2				#
+#	3. Trong truong hop so nhan bang vo cung thi ket qua la Infinity 			#case 3				#	
+#	4. Trong truong hop tri tuyet doi cua tich >= 2^128 thi ket qua la vo cuc (Infinity)	#case 4		  		#
+#	5. Trong truong hop tri tuyet doi cua tich <= 2^-127 thi ket qua la 0			#case 5		  		#
+
+
+
+
+#Chuong trinh: NHAN 2 SO THUC CHINH XAC DON (FLOAT)
+	.include "BTL_macro.mac"
+#Data segment
+	.data nhap_f1
+	.data nhap_f2
+	.data xuat_ket_qua
+	.data f1
+	.data f2
+	.data result
+	.data buffer
+	
+#Cac dinh nghia bien
+nhap_f1: .asciiz "So thuc f1 la: "
+nhap_f2: .asciiz "So thuc f2 la: "
+xuat_ket_qua: .asciiz "Tich cua 2 so thuc f1 va f2 la: "
+f1: .float 0.123
+f2: .float 0.123
+result: .float 0.0
+filename: .asciiz "BTLTEST.bin"
+buffer: .space 8  # Khai báo biến buffer với kích thước 8 byte (64 bit)
+
+#Cac cau nhac nhap du lieu
+
+#Code segment
+	.text
+main:	
+#Nhap (syscall)
+
+#Xu ly
+	multiple_float f1 f2 result
+	l.s $f12, result
+	addi $v0,$zero,2
+	syscall
+	
+	l.s $f1, f1
+	l.s $f2, f2
+	mul.s $f12, $f1,$f2
+	addi $v0,$zero,2
+	syscall
+	
+#Xuat ket qua (syscall)
+	
+#ket thuc chuong trinh (syscall)
+Kthuc:	addi	$v0,$zero,10
+	syscall
+# -------------------------------	
+# Cac chuong trinh khac
+# -------------------------------

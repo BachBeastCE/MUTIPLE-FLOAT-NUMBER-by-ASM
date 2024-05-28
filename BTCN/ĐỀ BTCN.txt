@@ -1,0 +1,14 @@
+Câu 1: Viết chương trình MARS MIPS dùng chức năng set seed (syscall 40) theo time (syscall 30) 
+và các chức năng phát số ngẫu nhiên để phát ra 3 số ngẫu nhiên fi (0<fi<1000). In ra màn hình và 
+lưu các số này lên tập tin SOLE.TXT trên đĩa thành 3 dòng như sau: 
+So f1 (2 so le): fff.ff 
+So f2 (3 so le): fff.fff 
+So f3 (4 so le): fff.ffff 
+Câu 2: Cho danh sách địa chỉ 32-bit truy xuất theo địa chỉ word như sau: 
+5, 164, 45, 4, 251, 90, 173, 164, 91, 44, 186, 252 
+a) Nếu dùng bộ nhớ cache Direct-mapped có 32 block, mỗi block chứa 1 word. Hãy xác định 
+địa chỉ theo bit, từ đó suy ra các vùng tag, index lưu trữ vào cache. Cho biết trạng thái 
+Hit/Miss của chuỗi truy xuất trên. 
+b) Làm lại câu a) với bộ nhớ cache Direct-mapped có 16 block, mỗi block chứa 2 word. 
+c) Hãy xác định tổng số bit bộ nhớ cần dùng để xây dựng bộ nhớ cache trong cả 2 trường hợp.  
+Biết rằng 1 phần tử cache sẽ chứa 1 bit V, các bit tag và dữ liệu.

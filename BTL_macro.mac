@@ -1,0 +1,186 @@
+# xuat cau nhac
+.macro get_s(%text)
+	li $v0,4
+	la $a0, %text
+	syscall
+.end_macro
+
+# xuat so thuc
+.macro get_f(%text,%float_num)
+	get_s %text
+	l.s $f12, %float_num
+	addi $v0,$zero,2
+	syscall
+.end_macro
+
+# Nhan 2 so thuc
+
+.macro multiple_float(%float1,%float2,%float_result)
+#Thanh ghi su dung
+	#s1: dau cua so thuc 1
+	#s2: Exponent cua so thuc 1
+	#s3: Fraction cua so thuc 1
+	#s4: Sign cua so thuc 2
+	#s5: Exponent cua so thuc 2
+	#s6: Fraction cua so thuc 2
+
+#Tai du lieu vao thanh ghi duoi dang ma nhi phan
+		lw $a1,%float1
+		lw $a2,%float2
+	
+#Kiem tra 2 so da nhap co hop le hay khong(= NaN)?
+		beq	$a1, 0x7FC00000, case1 				# 0x7FC00000 : NaN
+		beq	$a2, 0x7FC00000, case1
+	
+#Xu ly bit dau cua f(Bit 31) :
+	#Luu lan luot bit dau cua f1, f2 vao $s1, $s4
+		andi	$t1, $a1, 0x80000000 			# 0x80000000 = 1000 0000 0000 0000 0000 0000 0000 0000
+		srl	$t1, $t1, 31 				#Sign cua so thuc a = $t1
+		andi	$t2, $a2, 0x80000000
+		srl	$t2, $t2, 31 				#Sign cua so thuc b = $t2
+		
+	#Neu bit dau cua f1 va f2 giong nhau thi bit dau cua f la 0 (+) nguoc lai la "-" (1)
+	#Bit dau cua thuong so se la phep toan xor($t1,$t2). Luu bit dau cua f vao $t0
+		xor 	$s0, $t1, $t2
+	#Kiem tra 1 trong 2 so nhan co bang cong vo cuc (0x7F800000) /, tru vo cuc (0xFF800000) hay khong?
+	#Kiem tra so nhan thu 1	
+		beq	$a1, 0x7F800000, case4
+		beq	$a1, 0xFF800000, case4	
+	
+	#Kiem tra so nhan thu 2	
+		move	$a3,$a1				
+		move 	$a1,$a2
+		move   	$a2,$a3					# Do phep nhan co tinh hoan vi, doi cho $a1 giu gia tri so nhan 2, $a2 giu gia tri so nhan 1
+		beq	$a1, 0x7F800000, case4
+		beq	$a1, 0xFF800000, case4
+	
+	#Kiem tra 1 trong 2 so nhan co bang 0.0 hay -0.0 hay khong?
+		beq	$a1, $zero, case2
+		beq	$a2, $zero, case2
+		beq	$a1, 0x80000000, case2			# 0x80000000: -0.0
+		beq	$a2, 0x80000000, case2
+	
+#Xu ly cac bit exponent cua f(Bit 23 -> Bit 30):
+	#Luu cac bit mu cua f1, f2 vao $t2, $t3
+		andi	$t2, $a1, 0x7F800000
+		srl	$t2, $t2, 23
+		andi	$t3, $a2, 0x7F800000
+		srl	$t3, $t3, 23
+	
+	#Do f = f1 * f2 nen bit exponent cua f se bang bit exponent cua f1 cong bit exponent cua f2
+	#Luu bit exponent cua f vao $t1
+		add	$s1, $t2, $t3
+	
+	#Tru bias = 127 vao va luu $s1
+		sub	$s1, $s1, 127	
+			
+#Xu ly cac bit co so cua f:
+	#Luu cac bit co so cua f1, f2 vao $t1, $t2
+		andi	$t1, $a1, 0x007FFFFF
+		andi	$t2, $a2, 0x007FFFFF
+	
+	#Them 1 vao bit 23
+		ori	$t1, $t1, 0x00800000
+		ori	$t2, $t2, 0x00800000
+		
+	#Fraction cua f = bit (23->46)bit cao cua tich (Fraction f1 nhan Fraction f2 48 bit)
+		mult $t1,$t2				#24bit*24bit=48bit
+		mfhi $s2				#Luu 16 bit cao fraction cua f vao $s2
+		mflo $s3				#Luu 32 bit thap tich fraction tu lo $3
+							#Khi nay dau cham dong nam o bit thu 46
+
+	#Dua ve dang chuan 1.xxxxx
+		ori $t0,$s2,0xFFFF3FFF
+		beq $t0,0xFFFF7FFF, TH01.xx		#Truong hop 1: 2 bit cao cua tich la 01
+		beq $t0,0xFFFFFFFF, TH11.xx		#Truong hop 2: 2 bit cao cua tich la 10 hoac 11	
+		beq $t0,0xFFFFBFFF, TH10.xx		#Truong hop 3: 2 bit cao cua tich la 0		
+		j TH00.xx				
+	
+		#Xu li truong hop 1
+TH01.xx:
+		srl $s3,$s3,23				#Lay 9 bit cao trong thanh ghi lo
+		sll $s2,$s2,9				#Dich dau cham dong tu vi tri len bit 24
+		or $s2,$s2,$s3 				#Or 16 bit cao cua hi va 8 bit thap lo de co 24 bit cao
+		j fraction
+		
+		#Xu li truong hop 2				
+TH10.xx:
+TH11.xx:	
+		srl $s3,$s3,23				#Lay 9 bit cao trong thanh ghi lo										
+		sll $s2,$s2,9				#Dich dau cham dong tu vi tri len bit 24
+		or $s2,$s2,$s3				#Or 15 bit cao cua hi va 9 bit thap lo de co 24 bit cao
+		addi $s2,$s2,1				#Lam tron $s2 len
+		srl $s2,$s2,1				#Dich phai dua ve truong hop truong hop 1
+		addi $s1,$s1,1				#Tang exponent len 1
+		j fraction
+
+		#Xu li truong hop 3
+TH00.xx:	
+		sll $s2,$s2,9				#Dich dau cham dong tu vi tri 15 len bit 24
+		srl $s3,$s3,23
+		li $t1,0				# $t1 la so lan dich trai
+			
+Loop:		
+		#addi $t1,$t1,1				# $t1 +=1
+		#sll $s2,$s2,1
+		#andi $t0,$s2,0x0080000
+		#beq $t0,0x0080000, OutLoop
+		#j Loop
+OutLoop:
+		addi $t2,$t1,9				
+		li $t3,32
+		sub $t3,$t3,$t2
+		srlv  $s3,$s3,$t3			#Lay 9 + $t1 bit cao trong thanh ghi lo	
+		#addi $s3,$s3,1				#Lam tron len va lay 8 bit cao con lai trong lo
+		or $s2,$s2,$s3 				#Or (16-$t1) bit cao cua hi va (8+ $t1) bit thap lo de co 24 bit cao
+		sub $s1,$s1,$t1				#Giam exponent xuong ($t1 lan dich)
+										
+		#Tach bit cao 24 la 23 bit thap la fraction cua f
+fraction:		
+		#Sau khi chia, loai bo bit 1 o vi tri bit 24 cua $t2, 23 bit con la la fraction cua f, luu vao $s2
+		andi	$s2, $s2, 0x007FFFFF
+#Phat hien loi tran so mu:
+	#Neu $s1 < 0 hoac $s1 > 255 thi xu li ngoai le
+		blt	$s1,$zero, case2
+		bgt	$s1, 0xFE, case3
+		j combine
+
+#Xu ly ngoai le trong chuong trinh
+   
+	#Case 1 Truong hop mot trong hai so nhan mang gia tri khong hop le hoac 0 nhan vo cung
+case1:		
+		li	$v0, 0x7FC00000
+		j	result	
+		
+	#Case 2 Truong hop tri tuyet doi thuong <= 2^-127 hoac Tich bang 0
+case2:		
+		li	$s1, 0x0
+		li	$s2, 0x0
+		j	combine
+							
+	#Case 3 Truong hop tri tuyet doi tich >= 2^128 hoac Tich bang vo cung
+case3:		
+		li	$s1, 0xFF
+		li	$s2, 0x0
+		j	combine
+	
+	#Case 4 Mot trong 2 so nhan la vo cung
+case4: 
+		beq	$a2, 0x7F800000, case3
+		beq	$a2, 0xFF800000, case3		# infinity x infinity =	 infinity
+		beq	$a2, 0x0, case1			# 0 x infinity = NaN
+		j	case3				# !0 x infinity = infinity
+				
+#Gop ket qua thanh so thuc hoan chinh (f),Luu f vao $v0
+combine:	li	$t0, 0x0
+		or	$v0, $v0, $s0
+		sll	$v0, $v0, 8
+		or	$v0, $v0, $s1
+		sll	$v0, $v0, 23
+		or	$v0, $v0, $s2
+	
+#Luu f vao bo nho
+result:	
+	sw $v0, %float_result
+	move $s4,$v0
+.end_macro
